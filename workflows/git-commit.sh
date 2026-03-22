@@ -19,7 +19,8 @@ create_new_branch(){
 }
 
 select_files_to_be_commited() {
-  git status -s | cut -d ' ' -f 3 | gum choose --selected='*' --no-limit --header="Select files to be commited:"
+  git status -s | sed 's/  */ /g;s/^ //' | cut -d ' ' -f 2 |
+    gum choose --selected='*' --no-limit --header="Select files to be commited:"
 }
 
 has_files_to_be_commited(){
@@ -77,4 +78,5 @@ log_success "Summary: $SUMMARY"
 
 DESCRIPTION=$(gum write --placeholder "Details of this change")
 
-git commit -m "$SUMMARY" -m "$DESCRIPTION" -m "Relates-to: $TICKET"
+log_and_run "Commit: $TICKET - $SUMMARY" \
+  git commit -m "$SUMMARY" -m "$DESCRIPTION" -m "Relates-to: $TICKET"
