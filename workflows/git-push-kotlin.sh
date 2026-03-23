@@ -43,7 +43,7 @@ EOF
 
   concern_level=$(ai_run_template $code_review_tpl "Performing code review...")
   if [ ! "$concern_level" = "PASS" ]; then
-    log_info "AI has identified $concern_level concerns..."
+    log_info "AI has identified '$concern_level' concerns..."
     return 1
   else
     return 0
