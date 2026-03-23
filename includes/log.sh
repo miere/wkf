@@ -7,7 +7,7 @@ log_and_run() {
 
 log_temp(){
   local title="$1"; shift
-  gum spin --spinner pulse --title "$title" -- sleep $@
+  gum spin --spinner pulse --title "$title" -- sleep ${1:-2}
 }
 
 log_info(){
@@ -35,7 +35,22 @@ prompt(){
   gum input --placeholder="$1" "${extra_opts[@]}"
 }
 
+long_prompt(){
+  local extra_opts=(--width=70)
+  if [ -n "$1" ]; then
+    extra_opts+=("--placeholder=$1")
+  fi
+  gum write "${extra_opts[@]}" 
+}
+
 confirm(){
   gum confirm "$@"
 }
 
+display_markdown() {
+  gum format
+}
+
+display_markdown_file() {
+  cat $1 | display_markdown 
+}
