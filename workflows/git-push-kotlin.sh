@@ -96,7 +96,8 @@ context=$(prompt "Any extra info you want the AI to know?")
 
 if ! passed_code_review $context; then
   if [ -f $code_review_feedback ]; then
-    cat $code_review_feedback | gum format
+    display_markdown_file $code_review_feedback 
+    echo "\n"
     if ! proceed_anyways; then
       log_info "Aborting, as requested by the user."
       exit 0 

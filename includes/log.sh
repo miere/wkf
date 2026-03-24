@@ -1,7 +1,7 @@
 
 log_and_run() {
   local title="$1"; shift
-  gum spin --spinner pulse --title "$title" --show-error -- $@ && \
+  gum spin --spinner pulse --title "$title" --show-error -- "$@" && \
     log_success "$title"
 }
 
@@ -15,7 +15,7 @@ log_info(){
 }
 
 log_success(){
-  gum spin --spinner pulse --title "$@" -- sleep 0.3
+  gum spin --spinner pulse --title "$@" -- sleep 0.7
   gum log --message.foreground=10 "✓ $@"
 }
 
@@ -25,7 +25,7 @@ log_error(){
 }
 
 prompt(){
-  local extra_opts=(--padding="0 1")
+  local extra_opts=(--padding="0 0")
   if [ -n "$2" ]; then
     extra_opts+=("--prompt=$2")
   fi
@@ -44,7 +44,7 @@ long_prompt(){
 }
 
 confirm(){
-  gum confirm "$@"
+  gum confirm --padding="1 2" "$@"
 }
 
 display_markdown() {
@@ -53,4 +53,8 @@ display_markdown() {
 
 display_markdown_file() {
   cat $1 | display_markdown 
+}
+
+display_file() {
+  cat $1 | gum pager
 }

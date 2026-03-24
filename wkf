@@ -39,7 +39,7 @@ run_command(){
 
   if [ -x "$script" ]; then
     log_info "Triggering command '$command'..."
-    WRK_DIR=${WRK_DIR} $script
+    WRK_DIR=${WRK_DIR} CUR_DIR=${CUR_DIR} PWD=${CUR_DIR}  $script
   else
     log_error "Something is not right! Could not execute the command."
     exit 1
