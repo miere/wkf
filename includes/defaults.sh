@@ -1,6 +1,10 @@
 # Default settings for all scripts
 set -e
 
+if [ "${DEBUG}" = "true" ]; then
+  set -x
+fi
+
 if [ "${WRK_DIR}" = "" ]; then
   WRK_DIR=$(dirname $0)/..
 fi

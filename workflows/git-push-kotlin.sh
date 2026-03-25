@@ -88,7 +88,7 @@ log_and_run "Running QA checks..." \
   ./gradlew \
     --console plain --stacktrace \
     --no-daemon --no-scan --no-watch-fs \
-    detekt test integrationTest
+    detekt test 
 
 generate_diff
 

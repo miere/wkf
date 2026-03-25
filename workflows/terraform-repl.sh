@@ -13,7 +13,14 @@ function fetch_tf_token() {
 }
 
 read_terraform_command(){
-  prompt "state rm 'google_monitoring_metric_descriptor.proptrack_metrics["client/failures"]'" "terraform " || exit 2
+  prompt \
+     "state rm 'google_monitoring_metric_descriptor.proptrack_metrics["client/failures"]'" \
+     "> terraform " ||
+     return 1
+
+  # convert into array
+  eval "set -- $cmd"
+  TERRAFORM_ARGS=("$@")
 }
 
 # Main
@@ -25,13 +32,12 @@ log_info "Loading terraform credentials from Google Secret Manager..."
 export TF_TOKEN_app_terraform_io=$(fetch_tf_token)
 
 while true; do
-  cmd=$(read_terraform_command)
-  if [ ! "$?" = "0" ]; then
+  read_terraform_command || {
      log_info "Exiting..."
      exit 0
-  fi
-  echo terraform $cmd || (
-     log_error "Terraform command failed..." &&
-     echo
-  ) 
+  }
+
+  terraform "${TERRAFORM_ARGS[@]}" || {
+     log_error "Terraform command failed..."
+  }
 done

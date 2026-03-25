@@ -15,7 +15,36 @@ greeting(){
   echo
 }
 
+list_local_workflows(){
+  if [ -f ${CUR_DIR}/workflows ]; then
+    cat ${CUR_DIR}/workflows | sed '/^ *#/d;s/^ *//' | cut -d '=' -f 1
+  fi
+}
+
+run_local_command(){
+  local command_name=$1
+  local command_line
+ 
+  if [ -f ${CUR_DIR}/workflows ]; then
+    log_info "Finding '$command_name' in the local workflows..."
+    command_line=$(
+      cat ${CUR_DIR}/workflows |
+        sed "/^$command_name/"'!d;s/^ *//' |
+        cut -d '=' -f 2
+    )
+    if [ ! "$command_line" = "" ]; then
+      log_and_run "Triggering local workflow..." \
+        $command_line || return 2
+    else
+        return 1
+    fi
+  else
+    return 1
+  fi
+}
+
 list_commands(){
+  list_local_workflows
   for f in "${WRK_DIR}/workflows/"*.sh scripts/local/*.sh; do
     [ -f "$f" ] || continue
     basename "$f" .sh
@@ -33,21 +62,28 @@ choose_command(){
 run_command(){
   local command=$1
 
-  log_info "Finding script for command: $command"
-  local script="${WRK_DIR}/workflows/${command}.sh"
-  [ -x "$script" ] || script="scripts/local/${command}.sh"
+  run_local_command $command
+  local_cmd_status="$?"
 
-  if [ -x "$script" ]; then
-    log_info "Triggering command '$command'..."
-    WRK_DIR=${WRK_DIR} CUR_DIR=${CUR_DIR} PWD=${CUR_DIR}  $script
-  else
-    log_error "Something is not right! Could not execute the command."
-    exit 1
+  if [ "$local_cmd_status" -eq 2 ]; then
+    return 2
+  elif [ "$local_cmd_status" -eq 1 ]; then
+    log_info "Finding script for command: $command"
+    local script="${WRK_DIR}/workflows/${command}.sh"
+    [ -x "$script" ] || script="scripts/local/${command}.sh"
+
+    if [ -x "$script" ]; then
+      log_info "Triggering command '$command'..."
+      WRK_DIR="${WRK_DIR}" CUR_DIR="${CUR_DIR}" PWD="${CUR_DIR}" $script
+    else
+      log_error "Could not execute the command '$command'."
+      exit 1
+    fi
   fi
 }
 
 # MAIN
-clear
+[ "$DEBUG" = "true" ] || clear
 
 greeting
 log_temp "Initializing workflows..." 2
@@ -61,8 +97,7 @@ echo
 while true; do
   command=$(choose_command)
   if ! run_command $command; then
-    sleep 2
-    log_temp "It seems like something went wrong..." 2
+    log_temp "It seems like something went wrong..." 3
   fi
   echo
 done
