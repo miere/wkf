@@ -52,7 +52,11 @@ display_markdown() {
 }
 
 display_markdown_file() {
+  local current_columns=$(tput cols)
+
+  printf '\n' 1>&2
   cat $1 | display_markdown 
+  printf '\n' 1>&2
 }
 
 display_file() {

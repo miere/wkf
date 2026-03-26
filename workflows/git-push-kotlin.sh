@@ -9,11 +9,12 @@ tmp_file=/tmp/workflow-$(basename $0).$$
 code_review_tpl=${tmp_file}-code-review
 code_review_feedback=${tmp_file}-code-review-feedback
 patch_file=${tmp_file}-patch-file
+commit_logs_file=${tmp_file}-commit-logs
 
 # FUNCTIONS
 generate_diff() {
-  log_info "Computing modifications..."
-  git diff origin/main...HEAD > $patch_file
+  log_and_run "Computing modifications..." \
+    git diff origin/main...HEAD > $patch_file
 }
 
 passed_code_review(){
@@ -22,6 +23,7 @@ Note: never explain your steps, output only the result.
 
 The current branch has been modified and is ready for code review.
 The just generated patch (diff) file can be found at $patch_file.
+The commit logs can be found at $commit_logs_file.
 Please analyse the patch file and compare with the codebase in this folder.
 I want you to output either one the following words (and nothing else, no emojis
 or any other words but the following 3):
@@ -33,7 +35,7 @@ In case you output either MINOR or MAJOR, please write your concerns
 in file $code_review_feedback.
 EOF
 
-  if [ "$1" = "" ]; then
+  if [ ! "$1" = "" ]; then
     cat <<EOF >>$code_review_tpl
 ## Extra Context
 Here are some extra information about the code.
@@ -42,6 +44,13 @@ EOF
   fi
 
   concern_level=$(ai_run_template $code_review_tpl "Performing code review...")
+  if [ ! "$?" = "0" ]; then
+    cat <<EOF > ${tmp_file}-ai-error
+$concern_level
+EOF
+    log_error "AI has failed. I wrote the output in the ${tmp_file}-ai-error file."
+    return 2
+  fi
   if [ ! "$concern_level" = "PASS" ]; then
     log_info "AI has identified '$concern_level' concerns..."
     return 1
@@ -64,7 +73,7 @@ if [ ! -d .git ]; then
   exit 1
 fi
 
-log_info "Found valid git repository." 
+log_success "Found valid git repository." 
 
 # Warn about commiting into the main branch
 current_branch=$(fetch_current_branch)
@@ -74,14 +83,14 @@ if [ "$current_branch" = "main" ]; then
   exit 1
 fi
 
-log_info "Separate working branch: $current_branch"
+log_success "Not working on the 'main' branch: $current_branch"
 
 TICKET=$(infer_ticket_from_branch_name)
 
 if [ "$TICKET" = "" ]; then
   log_error "Could not infer the ticket from the branch name."
 else
-  log_info "Current branch is associated to ticket $TICKET."
+  log_success "Current branch is associated to ticket $TICKET."
 fi
 
 log_and_run "Running QA checks..." \
@@ -94,16 +103,15 @@ generate_diff
 
 context=$(prompt "Any extra info you want the AI to know?")
 
-if ! passed_code_review $context; then
+if ! passed_code_review "$context"; then
   if [ -f $code_review_feedback ]; then
     display_markdown_file $code_review_feedback 
-    echo "\n"
     if ! proceed_anyways; then
       log_info "Aborting, as requested by the user."
       exit 0 
     fi
   else
-    log_error "AI has not explained its concerns. If you proceed, CoPilot will assess it anyways."
+    log_error "AI has failed to perform the Pull Request locally."
     if ! proceed_anyways; then
       log_info "Aborting, as requested by the user."
       exit 0
@@ -115,4 +123,8 @@ log_and_run "Pushing changes..." \
   git push
 
 log_temp "Changes pushed to remote repository at the '${current_branch}' branch." 3
+
+log_and_run "Flushing temporary files..." \
+  rm ${tmp_file}*
+
 

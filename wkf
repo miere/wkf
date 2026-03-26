@@ -8,7 +8,7 @@ source ${WRK_DIR}/includes/defaults.sh
 greeting(){
   gum style \
         --foreground 212 --border-foreground 212 --border double \
-        --align center --width 70 --margin "1 2" --padding "1 2" \
+        --align center --width 80 --margin "1 2" --padding "1 2" \
         'Absolute Awesome Workflow Manager' \
         "McClane Mighty Software - $(date +%Y)" \
         "Apache License 2.0"
@@ -56,6 +56,7 @@ choose_command(){
     --limit=1 \
     --header.foreground=15 \
     --height=7 \
+    --timeout=300s \
     --placeholder="What do you wanna do?"
 }
 
