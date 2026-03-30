@@ -59,12 +59,10 @@ EOF
   fi
 }
 
-proceed_anyways(){
+confirm_push_changes(){
   gum confirm \
    --no-show-help \
-   --affirmative="Yes, proceed anyway" \
-   --negative="Abort" \
-   "Do you wish to proceed?"
+   "Do you wish to push your changes?"
 }
 
 # Only Git Repos are allowed
@@ -106,25 +104,19 @@ context=$(prompt "Any extra info you want the AI to know?")
 if ! passed_code_review "$context"; then
   if [ -f $code_review_feedback ]; then
     display_markdown_file $code_review_feedback 
-    if ! proceed_anyways; then
-      log_info "Aborting, as requested by the user."
-      exit 0 
-    fi
   else
     log_error "AI has failed to perform the Pull Request locally."
-    if ! proceed_anyways; then
-      log_info "Aborting, as requested by the user."
-      exit 0
-    fi
   fi
 fi 
 
-log_and_run "Pushing changes..." \
-  git push
+if confirm_push_changes; then
+  log_and_run "Pushing changes..." \
+    git push
 
-log_temp "Changes pushed to remote repository at the '${current_branch}' branch." 3
+  log_temp "Changes pushed to remote repository at the '${current_branch}' branch." 3
 
-log_and_run "Flushing temporary files..." \
-  rm ${tmp_file}*
+  log_and_run "Flushing temporary files..." \
+    rm ${tmp_file}*
+fi
 
-
+log_info "Code review finished."

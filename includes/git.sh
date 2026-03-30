@@ -1,5 +1,9 @@
 fetch_current_branch(){
-  git branch --show-current
+  if [ ! -d .git ]; then
+    echo "not a give repo"
+  else
+    git branch --show-current
+  fi
 }
 
 infer_ticket_from_branch_name(){
