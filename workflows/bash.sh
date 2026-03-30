@@ -15,7 +15,7 @@ env -i \
 PS1='\[\e[90m\]>\[\e[0m\] ' \
 BASH_SILENCE_DEPRECATION_WARNING=1 \
 HOME=/tmp \
-  $BASH --restricted --noprofile --rcfile $tmp_file || echo
+  $BASH --noprofile --rcfile $tmp_file || echo
 
 rm -f $tmp_file
 exit 0
