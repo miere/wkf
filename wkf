@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+# BOOTSTRAP
 WRK_DIR=$(dirname "$(realpath "$0")")
 CUR_DIR=$(pwd)
 
@@ -15,46 +17,11 @@ greeting(){
   echo
 }
 
-list_local_workflows(){
-  if [ -f ${CUR_DIR}/workflows ]; then
-    cat ${CUR_DIR}/workflows | sed '/^ *#/d;s/^ *//' | cut -d '=' -f 1
-  fi
-}
-
-run_local_command(){
-  local command_name=$1
-  local command_line
- 
-  if [ -f ${CUR_DIR}/workflows ]; then
-    log_debug "Finding '$command_name' in the local workflows..."
-    command_line=$(
-      cat ${CUR_DIR}/workflows |
-        sed "/^$command_name/"'!d;s/^ *//' |
-        cut -d '=' -f 2
-    )
-    if [ ! "$command_line" = "" ]; then
-      log_and_run "Running '$command_name'..." \
-        $command_line || return 2
-    else
-        log_debug "Could not find '$command_name' in the workflows. Skipping..."
-        return 1
-    fi
-  else
-    log_debug "No workflows detected. Skipping..."
-    return 1
-  fi
-}
-
-list_commands(){
-  list_local_workflows
-  for f in "${WRK_DIR}/workflows/"*.sh scripts/local/*.sh; do
-    [ -f "$f" ] || continue
-    basename "$f" .sh
-  done
-}
-
 choose_command(){
-  list_commands | sort | gum filter \
+  local workflows
+  workflows=$(list_all_workflows) || return 1
+
+  echo "$workflows" | sort | gum filter \
     --limit=1 \
     --strict \
     --header.foreground=15 \
@@ -64,26 +31,21 @@ choose_command(){
     --placeholder="What do you wanna do?"
 }
 
+list_all_workflows(){
+  workflow_list_local &&
+    workflow_list_enabled
+}
+
 run_command(){
   local command=$1
 
   local local_cmd_status=0
-  run_local_command $command || local_cmd_status=$?
+  workflow_run_local $command || local_cmd_status=$?
 
   if [ "$local_cmd_status" -eq 2 ]; then
     return 2
   elif [ "$local_cmd_status" -eq 1 ]; then
-    log_debug "Finding script for command: $command"
-    local script="${WRK_DIR}/workflows/${command}.sh"
-    [ -x "$script" ] || script="scripts/local/${command}.sh"
-
-    if [ -x "$script" ]; then
-      log_debug "Triggering command '$command'..."
-      WRK_DIR="${WRK_DIR}" CUR_DIR="${CUR_DIR}" PWD="${CUR_DIR}" $script
-    else
-      log_error "Could not execute the command '$command'."
-      exit 1
-    fi
+    workflow_run_enabled $command
   fi
 }
 
@@ -106,8 +68,14 @@ should_continue_or_start_over() {
 
 choose_a_worktree() {
   case "$(should_continue_or_start_over)" in
-    "start_over") git_create_new_worktree ;;
-    "continue") git_choose_worktree ;;
+    "start_over")
+      log_info "Creating a new worktree..."
+      git_create_new_worktree
+    ;;
+    "continue")
+      log_info "Resuming last session..."
+      git_choose_worktree
+    ;;
   esac
 }
 
@@ -120,6 +88,15 @@ greeting
 if ! git_is_repository; then
   log_error "Can't work on non-git folders."
   exit 1
+else
+  log_debug "Is a valid Git repository"
+fi
+
+if ! workflow_has_any_enabled; then
+  log_error "No workflow is enabled. Did you run '${WRK_DIR}/wkf_init.sh'?"
+  exit 4
+else
+  log_debug "It has workflows enabled."
 fi
 
 if git_has_uncleaned_worktrees; then
@@ -134,26 +111,35 @@ fi
 
 log_info "All good! We are ready to rock."
 cat <<EOF | display_markdown
-- current workspace: $CUR_DIR
-- current branch: $(fetch_current_branch)
-- current session: ${SESSION}
+- workspace: ${CUR_DIR}
+- branch: $(fetch_current_branch)
+- worktree: ${worktree_path}
 EOF
+
+if [ "$DEBUG" = "true" ]; then
+cat <<EOF | display_markdown
+- CONFIG_DIR: ${CONFIG_DIR}
+- WORKFLOW_DIR: ${WORKFLOW_DIR}
+- LOCAL_WORKFLOW_DIR: ${LOCAL_WORKFLOW_DIR}
+EOF
+fi
 echo
 
 while true; do
-  command=$(choose_command)
+  command=$(choose_command) || exit 4
+
   if [ ! "$command" = "" ]; then
     exit_code=0
     run_command $command || exit_code="$?"
 
     case "$exit_code" in
       0) continue ;;
-      130|200)
+      "130"|"200")
         log_info "Bye!"
         exit 0
       ;;
       *)
-        log_temp "It seems like something went wrong..." 3
+        log_temp "Command existed with $exit_code." 3
         echo
       ;;
     esac
