@@ -4,9 +4,6 @@
 source ${WRK_DIR}/includes/defaults.sh
 
 # MAIN
-log_and_run "Loading all branches..." \
-  git pull --rebase --all
-
 current_branch=$(fetch_current_branch)
 
 new_branch=$(

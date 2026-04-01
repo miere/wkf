@@ -59,14 +59,19 @@ fi
 log_and_run "Ensuring all modified files will be unstaged..." \
   git restore --staged .
 
-selected_files=$(select_files_to_be_commited)
-if [ ! "$?" = "0" ]; then
+selected_files=()
+
+while IFS= read -r line; do
+  selected_files+=("$line")
+done < <(select_files_to_be_commited)
+
+if [ ${#selected_files[@]} -eq 0 ]; then
   log_error "No files selected. Aborting commit..."
   exit 0
 fi
 
 log_and_run "Staging selected files..." \
- git add $selected_files
+  git add "${selected_files[@]}"
 
 # Commit dialog
 

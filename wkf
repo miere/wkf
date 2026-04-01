@@ -52,13 +52,14 @@ run_command(){
 should_continue_or_start_over() {
   local new="New Worktree"
   local cont="Continue previous work"
+  local chosen
 
-  local chosen=$(
+  chosen=$(
     gum choose \
       --padding="1 2" \
       --header="I found unfinished worktrees. What do you wanna do?" \
-      "$new" "$cont"
-  )
+      "$cont" "$new"
+  ) || return 1
 
   case "$chosen" in
     "$new") echo start_over ;;
@@ -67,7 +68,10 @@ should_continue_or_start_over() {
 }
 
 choose_a_worktree() {
-  case "$(should_continue_or_start_over)" in
+  local choice
+  choice=$(should_continue_or_start_over) || return 1
+
+  case "$choice" in
     "start_over")
       log_info "Creating a new worktree..."
       git_create_new_worktree
@@ -123,9 +127,9 @@ cat <<EOF | display_markdown
 - LOCAL_WORKFLOW_DIR: ${LOCAL_WORKFLOW_DIR}
 EOF
 fi
-echo
 
 while true; do
+  echo
   command=$(choose_command) || exit 4
 
   if [ ! "$command" = "" ]; then
@@ -140,7 +144,6 @@ while true; do
       ;;
       *)
         log_temp "Command existed with $exit_code." 3
-        echo
       ;;
     esac
   fi

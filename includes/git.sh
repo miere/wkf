@@ -25,7 +25,9 @@ git_has_files_to_be_commited(){
 }
 
 git_list_branches(){
-  git branch --list --color=never | sed 's/  *//g;s/\*//g'
+  git for-each-ref --format='%(refname:short)' refs/heads refs/remotes \
+    | sed 's|^[^/]*/||' \
+    | sort -u
 }
 
 git_has_uncleaned_worktrees(){
