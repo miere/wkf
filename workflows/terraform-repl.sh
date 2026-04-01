@@ -15,7 +15,7 @@ function fetch_tf_token() {
 read_terraform_command(){
   prompt \
      "state rm 'google_monitoring_metric_descriptor.proptrack_metrics["client/failures"]'" \
-     "> terraform " ||
+     "❯ terraform " ||
      return 1
 
   # convert into array
@@ -23,10 +23,19 @@ read_terraform_command(){
   TERRAFORM_ARGS=("$@")
 }
 
+select_terraform_directory() {
+  find . -name '.terraform' |
+    sed 's/.terraform//'|
+    gum choose \
+      --header="We found more than one folder containing terraform scripts. Choose one:" \
+      --limit=1 \
+      --select-if-one
+}
+
 # Main
-if [ ! -d .terraform ]; then
-  confirm "This folder is not a terraform folder. Do still you wish to proceed?" || exit 1
-fi
+selected_directory=$(select_terraform_directory) 
+log_success "Found terraform at $selected_directory."
+cd $selected_directory
 
 log_info "Loading terraform credentials from Google Secret Manager..."
 export TF_TOKEN_app_terraform_io=$(fetch_tf_token)

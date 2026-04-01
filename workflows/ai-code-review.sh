@@ -60,9 +60,7 @@ EOF
 }
 
 confirm_push_changes(){
-  gum confirm \
-   --no-show-help \
-   "Do you wish to push your changes?"
+  confirm "Do you wish to push your changes?"
 }
 
 # Only Git Repos are allowed
@@ -91,12 +89,12 @@ else
   log_success "Current branch is associated to ticket $TICKET."
 fi
 
-log_and_run "Running QA checks..." \
-  ./gradlew \
-    --console plain --stacktrace \
-    --no-daemon --no-scan --no-watch-fs \
-    detekt test 
+if git_has_files_to_be_commited; then
+  log_error "You haven't commited your files yet. Aborting..."
+  exit 0
+fi
 
+# MAIN
 generate_diff
 
 context=$(prompt "Any extra info you want the AI to know?")
@@ -108,15 +106,5 @@ if ! passed_code_review "$context"; then
     log_error "AI has failed to perform the Pull Request locally."
   fi
 fi 
-
-if confirm_push_changes; then
-  log_and_run "Pushing changes..." \
-    git push
-
-  log_temp "Changes pushed to remote repository at the '${current_branch}' branch." 3
-
-  log_and_run "Flushing temporary files..." \
-    rm ${tmp_file}*
-fi
 
 log_info "Code review finished."

@@ -8,7 +8,7 @@ fetch_current_branch(){
 }
 
 should_create_branch(){
-  gum confirm "I noticed you are commiting into 'main'. Do you want to create a branch now?"
+  confirm "I noticed you are commiting into 'main'. Do you want to create a branch now?"
 }
 
 create_new_branch(){
@@ -24,11 +24,6 @@ select_files_to_be_commited() {
     gum choose --selected='*' --no-limit --header="Select files to be commited:"
 }
 
-has_files_to_be_commited(){
-  local files=$(git status -s)
-  [ "$files" = "" ] && return 1 || return 0
-}
-
 read_ticket(){
   TICKET=$(git branch --show-current | sed 's/\([A-Za-z]\{3\}-[0-9][0-9]*\).*/\1/')
   
@@ -40,12 +35,6 @@ read_ticket(){
 
   [ "$TICKET" = "" ] && return 1 || return 0
 }
-
-# Only Git Repos are allowed
-if [ ! -d .git ]; then
-  log_error "Not a git repository... I'm unable to proceed!"
-  exit 1
-fi
 
 # Warn about commiting into the main branch
 current_branch=$(fetch_current_branch)
@@ -61,7 +50,7 @@ else
   log_success "Ticket: $TICKET"
 fi
 
-if ! has_files_to_be_commited; then
+if ! git_has_files_to_be_commited; then
   log_error "No files to be commited. Aborting..."
   exit 0
 fi
@@ -91,10 +80,9 @@ log_success "Summary: $SUMMARY"
 
 DESCRIPTION=$(gum write --placeholder "Details of this change")
 
+log_and_run "Commiting..." \
 git commit \
   -m "$SUMMARY" \
   -m "$DESCRIPTION" \
-  -m "Relates-to: $TICKET" &&
-     log_success "Commit: $TICKET - $SUMMARY" ||
-     log_error "Failed to commit $TICKET - $SUMMARY"
+  -m "Relates-to: $TICKET"
 

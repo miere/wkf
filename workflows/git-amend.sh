@@ -17,7 +17,7 @@ has_files_to_be_commited(){
 }
 
 # Only Git Repos are allowed
-if [ ! -d .git ]; then
+if ! git_is_repository; then
   log_error "Not a git repository... I'm unable to proceed!"
   exit 1
 fi

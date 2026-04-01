@@ -10,6 +10,12 @@ log_temp(){
   gum spin --spinner pulse --title "$title" -- sleep ${1:-2}
 }
 
+log_debug(){
+  if [ "$DEBUG" = "true" ]; then
+    gum log --message.foreground=11 "? $@"
+  fi
+}
+
 log_info(){
   gum log --message.foreground=8 "• $@"
 }
@@ -26,6 +32,9 @@ log_error(){
 
 prompt(){
   local extra_opts=(--padding="0 0")
+  if [ "$#" = 0 ]; then
+    extra_opts+=("--prompt=\"❯ \"")
+  fi
   if [ -n "$2" ]; then
     extra_opts+=("--prompt=$2")
   fi

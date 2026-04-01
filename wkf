@@ -26,19 +26,21 @@ run_local_command(){
   local command_line
  
   if [ -f ${CUR_DIR}/workflows ]; then
-    log_info "Finding '$command_name' in the local workflows..."
+    log_debug "Finding '$command_name' in the local workflows..."
     command_line=$(
       cat ${CUR_DIR}/workflows |
         sed "/^$command_name/"'!d;s/^ *//' |
         cut -d '=' -f 2
     )
     if [ ! "$command_line" = "" ]; then
-      log_and_run "Triggering local workflow..." \
+      log_and_run "Running '$command_name'..." \
         $command_line || return 2
     else
+        log_debug "Could not find '$command_name' in the workflows. Skipping..."
         return 1
     fi
   else
+    log_debug "No workflows detected. Skipping..."
     return 1
   fi
 }
@@ -52,29 +54,31 @@ list_commands(){
 }
 
 choose_command(){
-  list_commands | gum filter \
+  list_commands | sort | gum filter \
     --limit=1 \
+    --strict \
     --header.foreground=15 \
-    --height=7 \
-    --timeout=300s \
+    --height=15 \
+    --timeout=1200s \
+    --indicator="❯ " \
     --placeholder="What do you wanna do?"
 }
 
 run_command(){
   local command=$1
 
-  run_local_command $command
-  local_cmd_status="$?"
+  local local_cmd_status=0
+  run_local_command $command || local_cmd_status=$?
 
   if [ "$local_cmd_status" -eq 2 ]; then
     return 2
   elif [ "$local_cmd_status" -eq 1 ]; then
-    log_info "Finding script for command: $command"
+    log_debug "Finding script for command: $command"
     local script="${WRK_DIR}/workflows/${command}.sh"
     [ -x "$script" ] || script="scripts/local/${command}.sh"
 
     if [ -x "$script" ]; then
-      log_info "Triggering command '$command'..."
+      log_debug "Triggering command '$command'..."
       WRK_DIR="${WRK_DIR}" CUR_DIR="${CUR_DIR}" PWD="${CUR_DIR}" $script
     else
       log_error "Could not execute the command '$command'."
@@ -83,22 +87,75 @@ run_command(){
   fi
 }
 
+should_continue_or_start_over() {
+  local new="New Worktree"
+  local cont="Continue previous work"
+
+  local chosen=$(
+    gum choose \
+      --padding="1 2" \
+      --header="I found unfinished worktrees. What do you wanna do?" \
+      "$new" "$cont"
+  )
+
+  case "$chosen" in
+    "$new") echo start_over ;;
+    "$cont") echo continue ;;
+  esac
+}
+
+choose_a_worktree() {
+  case "$(should_continue_or_start_over)" in
+    "start_over") git_create_new_worktree ;;
+    "continue") git_choose_worktree ;;
+  esac
+}
+
 # MAIN
 [ "$DEBUG" = "true" ] || clear
 
 greeting
-log_temp "Initializing workflows..." 2
+#log_temp "Initializing workflows..." 0.7
+
+if ! git_is_repository; then
+  log_error "Can't work on non-git folders."
+  exit 1
+fi
+
+if git_has_uncleaned_worktrees; then
+  log_info "The user has unfinished worktrees."
+  worktree_path=$(choose_a_worktree)
+  cd $worktree_path
+else
+  log_info "Creating a new worktree..."
+  worktree_path=$(git_create_new_worktree)
+  cd $worktree_path
+fi
+
 log_info "All good! We are ready to rock."
 cat <<EOF | display_markdown
 - current workspace: $CUR_DIR
 - current branch: $(fetch_current_branch)
+- current session: ${SESSION}
 EOF
 echo
 
 while true; do
   command=$(choose_command)
-  if ! run_command $command; then
-    log_temp "It seems like something went wrong..." 3
+  if [ ! "$command" = "" ]; then
+    exit_code=0
+    run_command $command || exit_code="$?"
+
+    case "$exit_code" in
+      0) continue ;;
+      130|200)
+        log_info "Bye!"
+        exit 0
+      ;;
+      *)
+        log_temp "It seems like something went wrong..." 3
+        echo
+      ;;
+    esac
   fi
-  echo
 done
