@@ -50,20 +50,30 @@ run_command(){
 }
 
 should_continue_or_start_over() {
+  local current="Stay on the current branch: $(fetch_current_branch)"
   local new="New Worktree"
   local cont="Continue previous work"
+
+  local options
   local chosen
+
+  options=("$new" "$current")
+  if git_has_uncleaned_worktrees; then
+      log_info "Found at least one unfinished worktree..."
+      options=("$cont" "${options[@]}")
+  fi
 
   chosen=$(
     gum choose \
       --padding="1 2" \
-      --header="I found unfinished worktrees. What do you wanna do?" \
-      "$cont" "$new"
+      --header="What do you wanna do?" \
+      "${options[@]}"
   ) || return 1
 
   case "$chosen" in
     "$new") echo start_over ;;
     "$cont") echo continue ;;
+    "$current") echo current ;;
   esac
 }
 
@@ -79,6 +89,10 @@ choose_a_worktree() {
     "continue")
       log_info "Resuming last session..."
       git_choose_worktree
+    ;;
+    "current")
+      log_info "Working on the current branch."
+      echo "."
     ;;
   esac
 }
@@ -103,25 +117,26 @@ else
   log_debug "It has workflows enabled."
 fi
 
-if git_has_uncleaned_worktrees; then
-  log_info "The user has unfinished worktrees."
-  worktree_path=$(choose_a_worktree)
-  cd $worktree_path
-else
-  log_info "Creating a new worktree..."
-  worktree_path=$(git_create_new_worktree)
-  cd $worktree_path
+if [ "$1" = "--rebase-first" ]; then
+log_and_run "Fetching branches and other modifications from the upstream repository..." \
+    git fetch --all
+
+log_and_run "Updating $(fetch_current_branch)..." \
+    git pull --rebase
 fi
+
+worktree_path=$(choose_a_worktree)
+cd $worktree_path
 
 log_info "All good! We are ready to rock."
 cat <<EOF | display_markdown
 - workspace: ${CUR_DIR}
 - branch: $(fetch_current_branch)
-- worktree: ${worktree_path}
 EOF
 
 if [ "$DEBUG" = "true" ]; then
 cat <<EOF | display_markdown
+- worktree: ${worktree_path}
 - CONFIG_DIR: ${CONFIG_DIR}
 - WORKFLOW_DIR: ${WORKFLOW_DIR}
 - LOCAL_WORKFLOW_DIR: ${LOCAL_WORKFLOW_DIR}

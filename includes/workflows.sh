@@ -16,9 +16,9 @@ workflow_has_any_enabled() {
 }
 
 workflow_list_local(){
-  if [ -f ${CUR_DIR}/workflows ]; then
+  if [ -f $(pwd)/workflows ]; then
     log_debug "Probing file ${CUR_DIR}/workflows"
-    cat ${CUR_DIR}/workflows | sed '/^ *#/d;s/^ *//' | cut -d '=' -f 1
+    cat $(pwd)/workflows | sed '/^ *#/d;s/^ *//' | cut -d '=' -f 1
   fi
 }
 
@@ -34,7 +34,7 @@ workflow_list_enabled(){
 workflow_run_local() {
   local command_name="$1"
   local command_line
-  local workflow_file="${CUR_DIR}/workflows"
+  local workflow_file="$(pwd)/workflows"
 
   [ -f "$workflow_file" ] || {
     log_debug "No workflows detected. Skipping..."
@@ -66,7 +66,7 @@ workflow_run_enabled() {
   for script in "${scripts[@]}"; do
     if [ -x "$script" ]; then
       log_debug "Triggering command '$command' with $script..."
-      WRK_DIR="${WRK_DIR}" CUR_DIR="${CUR_DIR}" PWD="${CUR_DIR}" "$script"
+      WRK_DIR="${WRK_DIR}" CUR_DIR="${CUR_DIR}" PWD="${CUR_DIR}" DEBUG="${DEBUG:-no}" "$script"
       return
     fi
   done

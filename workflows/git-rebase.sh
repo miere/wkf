@@ -9,7 +9,7 @@ proceed_rebasing_current_branch(){
 }
 
 # Only Git Repos are allowed
-if [ ! -d .git ]; then
+if ! git_is_repository; then
   log_error "Not a git repository... I'm unable to proceed!"
   exit 1
 fi
@@ -25,8 +25,19 @@ if [ ! "$modified_files" = "" ]; then
     git stash -q -- .
 fi
 
-log_and_run "Rebasing..." \
-  git pull -q --rebase
+log_and_run "Reading recent modifications made on the upstream repository..." \
+  git fetch --all
+
+log_and_run "Updating from upstream..." \
+  git pull origin ${current_branch} -q --rebase
+
+log_and_run "Rebasing against 'main'..." \
+  git rebase origin/main || {
+    log_error "Could not proceed with the rebase. This might require manual intervention."
+    log_info "Your current work is saved at $(pwd)"
+    log_info "Leaving the workflow manager..."
+    exit 200
+  }
 
 if [ ! "$modified_files" = "" ]; then
   log_and_run "Applying previously made changes..." \

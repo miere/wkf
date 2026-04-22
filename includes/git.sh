@@ -56,6 +56,13 @@ git_create_new_worktree() {
   echo "${GIT_DEFAULT_WORKTREE_PATH}/$worktree"
 }
 
+git_reallocate_worktree(){
+    local worktree="$1"
+    log_and_run "Creating worktree $worktree" \
+      ${WRK_DIR}/scripts/git-create-worktree.sh "${GIT_DEFAULT_WORKTREE_PATH}/${worktree}" "$worktree" || return 1
+    echo "${GIT_DEFAULT_WORKTREE_PATH}/$worktree"
+}
+
 git_get_top_level_dir() {
   git rev-parse --show-toplevel
 }

@@ -14,8 +14,11 @@ EOF
 env -i \
 PS1='\[\e[90m\]❯\[\e[0m\] ' \
 BASH_SILENCE_DEPRECATION_WARNING=1 \
+TERM=screen-256color \
+PATH="$PATH" \
 HOME=/tmp \
-  $BASH --noprofile --rcfile $tmp_file || echo
+EDITOR=$EDITOR \
+  $BASH || echo
 
 rm -f $tmp_file
 exit 0
